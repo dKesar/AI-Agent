@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ['3.10', '3.12', '3.13']
+        python: ['3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -18,3 +18,4 @@ jobs:
       - run: python -m scripts.run_cases
       - run: python -m scripts.check_exercise --solution
       - run: python -m scripts.check_links
+      - run: python -m scripts.beginner --demo

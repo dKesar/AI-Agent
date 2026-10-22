@@ -14,6 +14,31 @@ def load_data(name):
     return json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))
 
 
+def validate_policies(policies):
+    """Проверить пользовательский набор правил до запуска цикла."""
+    if not isinstance(policies, list) or not 1 <= len(policies) <= 100:
+        raise ValueError("Набор правил должен содержать от 1 до 100 записей.")
+    seen = set()
+    for policy in policies:
+        if not isinstance(policy, dict) or set(policy) != {"id", "title", "keywords", "rule"}:
+            raise ValueError("У каждого правила нужны id, title, keywords и rule.")
+        for field in ("id", "title", "rule"):
+            if not isinstance(policy[field], str) or not policy[field].strip() or len(policy[field]) > 4000:
+                raise ValueError("Название, номер и текст правила должны быть непустыми строками.")
+        if (not re.fullmatch(r"[A-Z][A-Z0-9-]{1,39}", policy["id"])
+                or policy["id"] in seen or policy["id"] in {"SLA-01", "CATALOG-01"}):
+            raise ValueError("Номер правила должен быть уникальным, например TR-01.")
+        seen.add(policy["id"])
+        keys = policy["keywords"]
+        if (not isinstance(keys, list) or not 1 <= len(keys) <= 20
+                or any(not isinstance(k, str) or not re.fullmatch(r"\w{2,40}", k) for k in keys)):
+            raise ValueError("Укажите 1–20 ключей: каждый от 2 до 40 букв/цифр, без пробелов.")
+    result = deepcopy(policies)
+    for policy in result:
+        policy["keywords"] = [k.casefold() for k in policy["keywords"]]
+    return result
+
+
 class ToolError(ValueError):
     """Ожидаемое нарушение контракта или отказ учебного инструмента."""
 
@@ -50,10 +75,10 @@ def validate_task(task):
 class Toolkit:
     """Здесь находятся полномочия и доверенное состояние, а не в промпте."""
 
-    def __init__(self, task, *, fail=False, attack=False, estimate=None):
+    def __init__(self, task, *, fail=False, attack=False, estimate=None, policies=None):
         self.task = deepcopy(task)
         self.state = {}
-        self.policies = load_data("policies.json")
+        self.policies = validate_policies(load_data("policies.json") if policies is None else policies)
         self.sla = load_data("sla.json")
         self.fail = fail
         self.attack = attack

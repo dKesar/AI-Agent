@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .core import ModelError, Toolkit, load_data, run, validate_task
+from .core import ModelError, Toolkit, load_data, run, validate_policies, validate_task
 
 
 def main():
@@ -15,12 +15,19 @@ def main():
     parser.add_argument("--steps", type=int, default=8)
     parser.add_argument("--seconds", type=float, default=45)
     parser.add_argument("--extension", choices=["student", "solution"])
+    parser.add_argument("--policies", type=Path, help="Свой JSON-набор учебных правил")
     parser.add_argument("--json", action="store_true", help="Структурированный результат")
     options = parser.parse_args()
     try:
         task = json.loads(options.task.read_text(encoding="utf-8")) if options.task else cases[options.case]["task"]
     except (OSError, UnicodeError, json.JSONDecodeError):
         parser.error("Не удалось прочитать JSON-файл задачи.")
+    policies = None
+    if options.policies:
+        try:
+            policies = validate_policies(json.loads(options.policies.read_text(encoding="utf-8")))
+        except (OSError, UnicodeError, ValueError) as exc:
+            parser.error("Не удалось загрузить правила. " + str(exc))
     estimate = None
     if options.extension == "student":
         from practice.starter.estimate_cost import estimate_cost as estimate
@@ -29,14 +36,15 @@ def main():
     actor = None
     fail = not options.task and options.case == "tool_error"
     attack = not options.task and options.case == "injection"
-    if options.mode == "llm" and not validate_task(task):
+    kit = Toolkit(task, fail=fail, attack=attack, estimate=estimate, policies=policies) if not validate_task(task) else None
+    if options.mode == "llm" and kit is not None:
         from .openai_adapter import OpenAIModel
         try:
-            actor = OpenAIModel(task, Toolkit(task, estimate=estimate).schemas())
+            actor = OpenAIModel(task, kit.schemas())
         except ModelError as exc:
             parser.error(str(exc) + ": задайте OPENAI_API_KEY и OPENAI_MODEL; см. examples/llm.md")
     result = run(task, actor, steps=options.steps, seconds=options.seconds,
-                 fail=fail, attack=attack, estimate=estimate)
+                 fail=fail, attack=attack, estimate=estimate, toolkit=kit)
     result["mode"] = options.mode
     if actor is not None:
         result["model"] = actor.model

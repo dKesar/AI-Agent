@@ -3,8 +3,8 @@ from agent_lab.core import ROOT, load_data
 
 
 def main():
-    if sys.version_info < (3, 10):
-        print("Нужен Python 3.10 или новее.")
+    if sys.version_info < (3, 11):
+        print("Нужен Python 3.11 или новее.")
         return 1
     required = ["README.md", "agent_lab/core.py", "lectures/01_agents.md", "lectures/02_tools.md"]
     missing = [p for p in required if not (ROOT / p).is_file()]
