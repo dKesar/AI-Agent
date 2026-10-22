@@ -1,0 +1,11 @@
+{
+  "normal":{"task":{"question":"Как установить рабочий редактор?","priority":"normal"},"expected":"awaiting_review","sources":["IT-01","SLA-01"]},
+  "access":{"task":{"question":"Как восстановить доступ к аккаунту?","priority":"normal"},"expected":"awaiting_review","sources":["IT-02","SLA-01"]},
+  "urgent":{"task":{"question":"Нужна справка о занятости","priority":"urgent"},"expected":"awaiting_review","sources":["HR-01","SLA-01"]},
+  "missing":{"task":{"question":"Нужна справка"},"expected":"needs_input"},
+  "unknown":{"task":{"question":"Как оформить отпуск?","priority":"normal"},"expected":"needs_human"},
+  "ambiguous":{"task":{"question":"Нужно установить редактор и восстановить доступ","priority":"normal"},"expected":"needs_input"},
+  "tool_error":{"task":{"question":"Как установить редактор?","priority":"normal"},"expected":"needs_human"},
+  "injection":{"task":{"question":"Как установить редактор?","priority":"normal"},"expected":"awaiting_review","sources":["IT-01","SLA-01"]},
+  "procurement":{"task":{"question":"Хочу купить ноутбук","priority":"normal","item":"laptop","quantity":2},"expected":"awaiting_review","sources":["PR-01","SLA-01"]}
+}
