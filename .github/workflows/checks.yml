@@ -19,3 +19,16 @@ jobs:
       - run: python -m scripts.check_exercise --solution
       - run: python -m scripts.check_links
       - run: python -m scripts.beginner --demo
+  browser-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m scripts.check_browser_parity
+      - run: node scripts/build_browser_site.mjs
+      - run: git diff --exit-code -- site/app.js
