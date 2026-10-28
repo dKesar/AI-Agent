@@ -1,0 +1,20 @@
+{
+  "version": "lecture-2026-10-27",
+  "slides": 41,
+  "lecture_minutes": 90,
+  "practice_minutes": 180,
+  "files": [
+    {
+      "filename": "ИИ-агенты Клименко, Сверкунов.pptx",
+      "asset": "lecture.pptx",
+      "bytes": 7000871,
+      "sha256": "b25f97f994a763e3eeb06be3797bda58fd7665e1a7958f26504f136f16921b0a"
+    },
+    {
+      "filename": "ИИ_агенты_конспект_сценарий_лекции.docx",
+      "asset": "explanation.docx",
+      "bytes": 90987,
+      "sha256": "9975614252bcb4b413ee58b3bd61b24fb60cbae73989142e7d83360935251f62"
+    }
+  ]
+}

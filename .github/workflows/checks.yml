@@ -32,3 +32,5 @@ jobs:
       - run: python -m scripts.check_browser_parity
       - run: node scripts/build_browser_site.mjs
       - run: git diff --exit-code -- site/app.js
+      - run: python -m scripts.package_browser_site
+      - run: python -m scripts.check_browser_package

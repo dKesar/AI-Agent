@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const read=name=>fs.readFile(path.join(root,'site',name),'utf8');
+const read=async name=>(await fs.readFile(path.join(root,'site',name),'utf8')).replace(/\r\n/g,'\n');
 const engine=(await read('engine.mjs')).replace(/^export /gm,'');
 const data=(await read('source-data.mjs')).replace(/^export /gm,'');
 const app=(await read('app.mjs')).replace(/^import .*;\n/gm,'');
