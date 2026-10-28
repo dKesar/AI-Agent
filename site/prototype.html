@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Урок и первый опыт · ИИ-агенты</title>
+  <link rel="stylesheet" href="./prototype.css">
+  <script defer src="./prototype.js"></script>
+</head>
+<body>
+<a class="skip" href="#content">К содержанию</a>
+<header class="topbar">
+  <a class="brand" href="#lesson"><span class="brand-icon" aria-hidden="true">а</span><span>ИИ-агенты<small>Понять и сделать своими руками</small></span></a>
+  <span class="preview-label">Пробная версия</span>
+  <a class="original" href="./index.html">Текущий сайт ↗</a>
+</header>
+<div class="workspace">
+  <aside class="sidebar" aria-label="Маршрут занятия">
+    <p class="overline">ВАШ МАРШРУТ</p>
+    <h2>От примера<br>к своему помощнику</h2>
+    <p class="sidebar-intro">Начните с короткого урока.<br>Затем попробуйте сами.</p>
+    <nav class="route">
+      <a id="nav-lesson" href="#lesson" class="route-item active"><span class="route-number">1</span><span><b>Разобраться на примере</b><small>Три шага помощника · 5 минут</small></span></a>
+      <a id="nav-practice" href="#practice" class="route-item"><span class="route-number">2</span><span><b>Провести первый опыт</b><small>Ваш прогноз и результат · 3 минуты</small></span></a>
+    </nav>
+    <div class="up-next"><span class="overline">ПОСЛЕ ПЕРВОГО ОПЫТА</span><p>Создать своё правило<br>и проверить его на новых вопросах.</p><small>Этот этап появится в следующей версии.</small></div>
+    <div class="sidebar-note"><span aria-hidden="true">↳</span><p>Здесь можно ошибаться.<br>Мы учимся на разнице между<br>ожиданием и результатом.</p></div>
+  </aside>
+  <main id="content" tabindex="-1">
+    <section id="lesson-screen" aria-labelledby="lesson-title">
+      <div class="breadcrumb">Урок 01 <span>/</span> Как работает помощник</div>
+      <div class="page-heading"><div><p class="overline">РАЗБЕРЁМ ГОТОВЫЙ ПРИМЕР</p><h1 id="lesson-title">Как помощник отвечает Ане</h1><p class="intro">Аня хочет установить рабочий редактор. Посмотрим, как её вопрос превращается в черновик ответа.</p></div><span class="time">≈ 5 минут</span></div>
+      <div class="lesson-progress" aria-label="Шаги урока"><span id="lesson-count">Шаг 1 из 3</span><div class="progress-track"><div id="lesson-progress-bar"></div></div></div>
+      <article class="lesson-card">
+        <div class="slide-toolbar"><span id="slide-label">ИСХОДНАЯ ЛЕКЦИЯ · СЛАЙД 13</span><a id="slide-open" href="./assets/slides/slide-13.png" target="_blank" rel="noopener">Открыть крупнее ↗</a></div>
+        <img id="lesson-image" src="./assets/slides/slide-13.png" width="1280" height="720" alt="История Ани. Поиск правила установки рабочего редактора.">
+        <div class="explanation"><div class="step-heading"><span id="step-number">01</span><h2 id="step-title">Сначала — найти правило</h2></div><p id="step-explanation"></p><div class="takeaway"><span>Запомните</span><p id="step-takeaway"></p></div><details id="lesson-question"><summary id="question-summary"></summary><p id="question-answer"></p></details></div>
+      </article>
+      <div class="lesson-bottom"><button id="lesson-back" class="button secondary" disabled>← Назад</button><p id="next-hint">Дальше: узнаем срок ответа</p><button id="lesson-next" class="button primary">Далее: срок ответа →</button></div>
+      <p class="quiet-note">На слайдах показаны все элементы сразу. В этом примере работает учебный симулятор.</p>
+    </section>
+    <section id="practice-screen" hidden aria-labelledby="practice-title">
+      <div class="breadcrumb">Практика 01 <span>/</span> Первый опыт</div>
+      <div class="page-heading"><div><p class="overline">ТЕПЕРЬ ВАША ОЧЕРЕДЬ</p><h1 id="practice-title">Предскажите результат</h1><p class="intro">Сначала предположите, чем закончится работа помощника. Затем запустите его и сравните.</p></div><span class="time">≈ 3 минуты</span></div>
+      <div class="practice-flow"><span class="flow-active">1. Прогноз</span><span aria-hidden="true">→</span><span id="flow-result">2. Результат</span><span aria-hidden="true">→</span><span id="flow-conclusion">3. Вывод</span></div>
+      <article class="question-card"><div class="avatar" aria-hidden="true">А</div><div><p class="overline">ВОПРОС АНИ</p><h2 id="task-question">Как установить рабочий редактор?</h2><p>В учебной памятке есть правило установки программ. Помощник может найти его, узнать срок и подготовить черновик.</p></div></article>
+      <form id="prediction-form"><fieldset id="prediction-fields"><legend>Что получит Аня в конце?</legend><p class="field-intro">Выберите один вариант. Это ваш прогноз — ошибиться нормально.</p>
+        <label class="choice"><input type="radio" name="prediction" value="awaiting_review" required><span class="choice-letter">А</span><span><b>Черновик для проверки человеком</b><small>Помощник найдёт правило и подготовит текст.</small></span></label>
+        <label class="choice"><input type="radio" name="prediction" value="needs_input"><span class="choice-letter">Б</span><span><b>Уточняющий вопрос</b><small>Помощнику не хватит данных для ответа.</small></span></label>
+        <label class="choice"><input type="radio" name="prediction" value="needs_human"><span class="choice-letter">В</span><span><b>Передачу вопроса сотруднику</b><small>Помощник не найдёт подходящего правила.</small></span></label>
+      </fieldset><div class="run-row"><button id="run-example" class="button primary" disabled>Проверить прогноз →</button><span id="prediction-hint">Сначала выберите вариант выше</span></div></form>
+      <section id="practice-result" class="result" hidden aria-labelledby="result-title" tabindex="-1" aria-live="polite"><p id="match-label" class="overline"></p><h2 id="result-title"></h2><p id="prediction-comparison"></p><ol id="result-steps" class="result-steps"></ol><div class="draft"><span class="overline">ЧЕРНОВИК ПОМОЩНИКА</span><p id="draft-text"></p></div><div class="conclusion"><h3>Что показывает этот опыт?</h3><p>Помощник собрал ответ из найденного правила и срока. Сообщение Ане не отправлено: сначала текст должен проверить человек.</p></div><div class="result-actions"><button id="try-again" class="button secondary">Пройти опыт ещё раз</button><a class="text-link" href="#lesson">Вернуться к объяснению ↗</a></div><p class="quiet-note">Первый опыт завершён. Создание своего правила добавим после проверки этого прототипа.</p></section>
+    </section>
+    <footer>Учебный пример · Правила и сроки вымышленные · Ничего не отправляется</footer>
+  </main>
+</div>
+</body>
+</html>
