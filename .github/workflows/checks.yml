@@ -2,11 +2,14 @@ name: Workshop checks
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+env:
+  PYTHONUTF8: '1'
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +23,10 @@ jobs:
       - run: python -m scripts.check_links
       - run: python -m scripts.beginner --demo
   browser-parity:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,9 +36,9 @@ jobs:
         with:
           node-version: '22'
       - run: node --check site/lecture.js
-      - run: node --test site/agent-anatomy/*.test.cjs
+      - run: node scripts/test_browser.mjs
       - run: python -m scripts.check_browser_parity
       - run: node scripts/build_browser_site.mjs
-      - run: git diff --exit-code -- site/app.js
+      - run: git diff --exit-code -- site/app.js site/index.html
       - run: python -m scripts.package_browser_site
       - run: python -m scripts.check_browser_package

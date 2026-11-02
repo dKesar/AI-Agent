@@ -2,6 +2,8 @@
 (() => {
   'use strict';
   const count = 41;
+  const closing = globalThis.LectureClosing || {};
+  const closingView = document.getElementById('lecture-closing');
   const image = document.getElementById('lecture-slide');
   const picker = document.getElementById('lecture-number');
   const back = document.getElementById('slide-back');
@@ -23,8 +25,20 @@
   }
   function show(number, updateHash = true) {
     current = Math.max(1, Math.min(count, number));
+    error.hidden = true;
+    const adapted = closing[current];
+    if (closingView) {
+      image.hidden = Boolean(adapted);
+      closingView.hidden = !adapted;
+      if (adapted) {
+        closingView.replaceChildren();
+        const add = (tag,value,className) => { const el=document.createElement(tag); el.textContent=value; if(className)el.className=className; return el; };
+        closingView.append(add('p','ГЛАВА 4 · ТЕКУЩИЙ ПРАКТИКУМ','closing-kicker'),add('h2',adapted.title),add('p',adapted.lead,'closing-lead'));
+        const list=document.createElement('ul');for(const point of adapted.points)list.append(add('li',point));closingView.append(list,add('p',adapted.note,'closing-note'));
+      }
+    }
     const source = './assets/slides/slide-' + current + '.png';
-    if (image.getAttribute('src') !== source) {
+    if (!adapted && image.getAttribute('src') !== source) {
       error.hidden = true;
       image.src = source;
     }
@@ -35,9 +49,12 @@
     forward.textContent = current === count ? 'Последний слайд' : 'Вперёд →';
     document.getElementById('slide-count').textContent = 'из ' + count;
     document.title = 'Слайд ' + current + ' из ' + count + ' · Очная лекция';
-    if (updateHash) history.replaceState(null, '', '#slide-' + current);
+    if (updateHash) {
+      try { history.replaceState(null, '', '#slide-' + current); }
+      catch { location.hash = 'slide-' + current; }
+    }
   }
-  image.addEventListener('error', () => { error.hidden = false; });
+  image.addEventListener('error', () => { if(!closing[current])error.hidden = false; });
   image.addEventListener('load', () => { error.hidden = true; });
   back.addEventListener('click', () => show(current - 1));
   forward.addEventListener('click', () => show(current + 1));
@@ -62,5 +79,5 @@
     fullscreen.textContent = document.fullscreenElement ? 'Выйти из полного экрана' : 'На весь экран';
   });
   show(fromHash(), false);
-  if (image.complete && image.naturalWidth === 0) error.hidden = false;
+  if (!closing[current] && image.complete && image.naturalWidth === 0) error.hidden = false;
 })();

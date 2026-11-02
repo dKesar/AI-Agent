@@ -1,11 +1,14 @@
 from contextlib import redirect_stdout
+from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from threading import Barrier
 import unittest
+from unittest.mock import patch
 
 from agent_lab.core import ROOT, Toolkit, load_data, run, validate_policies
 from scripts.beginner import create_case
@@ -54,6 +57,24 @@ class BeginnerTests(unittest.TestCase):
             self.assertEqual(result['sources'], ['TR-01', 'SLA-01'])
             self.assertFalse(result['sent'])
             self.assertEqual(load_data('policies.json'), before)
+
+    def test_simultaneous_wizards_reserve_distinct_folders_before_writing(self):
+        from scripts import beginner
+        barrier, original = Barrier(2), beginner.write_json
+        def write(path, data):
+            if path.name == 'policies.json':
+                barrier.wait(timeout=10)
+            original(path, data)
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(StringIO()), patch.object(beginner, 'write_json', write):
+            def create(_):
+                answers = iter(['', '', '', 'Укажите цель и даты.', 'Как оформить командировку?', '1'])
+                return create_case(Path(directory), input_fn=lambda _: next(answers))
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                folders = list(pool.map(create, range(2)))
+            self.assertNotEqual(*folders)
+            for folder in folders:
+                result = json.loads((folder / 'result.json').read_text(encoding='utf-8'))
+                self.assertEqual(result['sources'][0], 'TR-01')
 
     def test_cli_uses_saved_configuration(self):
         with tempfile.TemporaryDirectory() as directory:

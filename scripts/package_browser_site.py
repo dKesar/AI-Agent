@@ -68,7 +68,7 @@ def main():
         for file in sorted(SITE.rglob("*")):
             if file.is_file() and file != archive:
                 name = "site/" + file.relative_to(SITE).as_posix()
-                if file == SITE / "index.html":
+                if file == SITE / "legacy.html":
                     page = file.read_text(encoding="utf-8")
                     download = '<a class="button secondary" href="./assets/offline-course.zip" download>Скачать автономный комплект ZIP ↗</a>'
                     if download not in page:

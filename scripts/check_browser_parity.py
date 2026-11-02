@@ -41,7 +41,7 @@ def main():
     if not node:
         print("Для сверки реализации JavaScript нужен Node.js 20+. Основная практика браузера не требует установки Node.")
         return 2
-    completed = subprocess.run([node, str(ROOT / "scripts/browser_parity.mjs")], input=json.dumps(cases, ensure_ascii=False), capture_output=True, text=True, timeout=30)
+    completed = subprocess.run([node, str(ROOT / "scripts/browser_parity.mjs")], input=json.dumps(cases, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", timeout=30)
     print(completed.stdout.strip() or completed.stderr.strip())
     return completed.returncode
 

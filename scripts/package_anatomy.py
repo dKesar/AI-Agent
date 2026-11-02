@@ -14,7 +14,8 @@ def main():
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1] / 'site' / 'agent-anatomy'
     destination = args.destination.resolve()
-    if destination == source.resolve() or source.resolve() in destination.parents:
+    site = source.parent.resolve()
+    if destination == site or site in destination.parents or destination in site.parents:
         raise SystemExit('Выберите папку вне исходников практикума.')
     for name in FILES:
         if not (source / name).is_file():
@@ -29,7 +30,7 @@ def main():
         shutil.copyfile(source / name, destination / name)
     page = destination / 'index.html'
     page.write_text(page.read_text(encoding='utf-8').replace('href="../lecture.html"', 'href="lecture.html"'), encoding='utf-8')
-    lecture_files = ['lecture.html', 'lecture.css', 'lecture.js', 'assets/lecture.pptx', 'assets/explanation.docx']
+    lecture_files = ['lecture.html', 'lecture.css', 'lecture-chapter.js', 'lecture.js', 'assets/lecture.pptx', 'assets/explanation.docx']
     lecture_files += [f'assets/slides/slide-{i}.png' for i in range(1, 42)]
     for name in lecture_files:
         target = destination / name

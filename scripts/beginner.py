@@ -79,11 +79,15 @@ def create_case(output, *, input_fn=input):
         print("Введите 1 или 2.")
     task = {"question": question, "priority": "urgent" if priority == "2" else "normal"}
     # Каждая попытка получает свою папку; повторный запуск не теряет прошлую работу.
-    folder = output / "my_case"
-    suffix = 2
-    while folder.exists():
-        folder = output / f"my_case_{suffix}"
-        suffix += 1
+    output.mkdir(parents=True, exist_ok=True)
+    suffix = 1
+    while True:
+        folder = output / ("my_case" if suffix == 1 else f"my_case_{suffix}")
+        try:
+            folder.mkdir()
+            break
+        except FileExistsError:
+            suffix += 1
     write_json(folder / "policies.json", policies)
     write_json(folder / "task.json", task)
     result = run(task, toolkit=Toolkit(task, policies=policies))
@@ -98,6 +102,9 @@ def create_case(output, *, input_fn=input):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if sys.version_info < (3, 11):
         print("Для курса нужен Python 3.11 или новее. Обратитесь к преподавателю.")
         return 1

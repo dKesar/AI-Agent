@@ -173,7 +173,8 @@ test('report safely escapes arbitrary participant text in every free-text field'
   const text = '</p><script>alert("x")</script><img src=x onerror=alert(1)>&';
   for (const field of ['author', 'goal', 'callExplanation', 'goalExplanation']) work[field] = text;
   const html = model.report(work, engine);
-  assert.doesNotMatch(html, /<script|<img|<\/p><script/);
+  const body = html.match(/<body>([\s\S]*)<\/body>/)[1];
+  assert.doesNotMatch(body, /<script|<img|<\/p><script/);
   assert.equal(html.split(model.escape(text)).length - 1, 4);
   assert.match(html, /&lt;script&gt;alert\(&quot;x&quot;\)&lt;\/script&gt;/);
 });

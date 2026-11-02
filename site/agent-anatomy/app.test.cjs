@@ -12,8 +12,8 @@ const fourthModel = require('./block-four-model.js');
 const courseModel = require('./course-model.js');
 
 // Execute actual UI callbacks. Hooks are injected into this in-memory copy only.
-function loadApp({storageFails=false}={}) {
-  const events = {}, handlers={}, elements = new Map(), dynamic = new Set(), cached = new Map(), downloads = [];
+function loadApp({storageFails=false,initialStorage={},initialHash='',writeFails=()=>false,missingModule=null}={}) {
+  const events = {}, handlers={}, elements = new Map(), dynamic = new Set(), cached = new Map(Object.entries(initialStorage)), downloads = [];
   function listen(name,fn){(handlers[name]||=[]).push(fn);events[name]=event=>[...handlers[name]].forEach(handle=>handle(event));}
   let activeId = null, screenWrites = 0;
   const staticIds = ['screen','steps','next','previous','step-count','progress-bar','step-help','save-status','notice','restore','skip'];
@@ -42,11 +42,12 @@ function loadApp({storageFails=false}={}) {
       querySelectorAll:()=>[...elements.values()].filter(el=>el.hasAttribute('aria-invalid')),
       addEventListener:listen,
       createElement:()=>({click(){},remove(){}}),body:{append(){}}},
-    window:{addEventListener:listen,scrollTo(){}},location:{hash:''},
-    localStorage:{getItem:key=>{if(storageFails)throw Error('Storage blocked');return cached.get(key)||null;},setItem:(key,value)=>{if(storageFails)throw Error('Storage blocked');cached.set(key,value);}},
+    window:{addEventListener:listen,scrollTo(){}},location:{hash:initialHash},
+    localStorage:{getItem:key=>{if(storageFails)throw Error('Storage blocked');return cached.get(key)||null;},setItem:(key,value)=>{if(storageFails||writeFails())throw Error('Storage blocked');cached.set(key,value);},removeItem:key=>cached.delete(key)},
     setTimeout:()=>1,clearTimeout(){},confirm:()=>true,Blob,
     URL:{createObjectURL(blob){downloads.push(blob);return 'blob:test';},revokeObjectURL(){}}
   });
+  if(missingModule)context[missingModule]=undefined;
   let secondSource=fs.readFileSync(path.join(__dirname,'block-two-app.js'),'utf8');
   secondSource=secondSource.replace('return {resume};','return {resume,getState:()=>state};');
   vm.runInContext(secondSource,context);
@@ -263,4 +264,75 @@ test('independent check gives no answer key before submission and preserves live
 test('a learner can save a clearly incomplete report before answering the final check',async()=>{
  const app=loadApp();app.context.location.hash='#block4/report';app.route();app.events.click({target:{closest:()=>({dataset:{action:'draft-four'}})}});
  const report=await app.downloads[0].text();assert.match(report,/Черновик — есть незавершённые разделы/);assert.match(report,/Новый случай ещё не разобран/);assert.doesNotMatch(report,/первой попытке с журналом согласуются/);
+});
+
+test('one autosave resumes the last block and step with every block preserved after reopening',()=>{
+ const app=loadApp();app.input('goal','Первый блок до закрытия');enterFourth(app);app.input('prediction','Прогноз перед закрытием');
+ const saved=JSON.parse(app.cached.get(courseModel.STORAGE_KEY));assert.equal(saved.activeBlock,4);assert.equal(saved.blocks.one.goal,'Первый блок до закрытия');
+ const reopened=loadApp({initialStorage:Object.fromEntries(app.cached)});assert.equal(reopened.context.activePracticeBlock,4);assert.equal(reopened.fourth().getState().step,2);assert.equal(reopened.fourth().getState().cases.available.prediction,'Прогноз перед закрытием');assert.equal(reopened.context.practiceWork.one.goal,'Первый блок до закрытия');
+});
+
+test('old per-block autosaves migrate without mixing them with a newer snapshot',()=>{
+ const first=model.fresh(),four=fourthModel.fresh();first.goal='Старый первый';four.goal='Старый четвёртый';
+ const app=loadApp({initialStorage:{'agent-course-block-one-v2':JSON.stringify(first),[fourthModel.KEY]:JSON.stringify(four)}});app.input('goal','Новый первый');app.context.location.hash='#block4/task';app.route();app.input('goal','Новый четвёртый');
+ const reopened=loadApp({initialStorage:Object.fromEntries(app.cached)});assert.equal(reopened.context.practiceWork.one.goal,'Новый первый');assert.equal(reopened.context.practiceWork.four.goal,'Новый четвёртый');
+});
+
+test('failed restore autosave leaves the previous complete snapshot intact and warns about in-memory work',async()=>{
+ let fail=false;const app=loadApp({writeFails:()=>fail});app.input('goal','Сохранённая работа');const before=app.cached.get(courseModel.STORAGE_KEY);fail=true;
+ const incoming=model.fresh();incoming.goal='Импортированная работа';await app.elements.get('restore').listeners.change({target:{files:[{size:100,text:async()=>JSON.stringify(model.packet(incoming))}],value:'file'}});
+ assert.equal(app.context.practiceWork.one.goal,'Импортированная работа');assert.equal(app.cached.get(courseModel.STORAGE_KEY),before);assert.match(app.elements.get('notice').textContent,/в памяти.*автосохранение недоступно/);
+ const reopened=loadApp({initialStorage:Object.fromEntries(app.cached)});assert.equal(reopened.getState().goal,'Сохранённая работа');
+});
+
+test('an unreadable saved snapshot is preserved until the learner explicitly restores a valid file',async()=>{
+ const corrupt='{incomplete';const app=loadApp({initialStorage:{[courseModel.STORAGE_KEY]:corrupt}});assert.match(app.elements.get('notice').textContent,/не перезаписывается/);app.input('goal','Новые ответы в памяти');assert.equal(app.cached.get(courseModel.STORAGE_KEY),corrupt);
+ const fresh=model.fresh();fresh.goal='Восстановление подтверждено';await app.elements.get('restore').listeners.change({target:{files:[{size:100,text:async()=>JSON.stringify(model.packet(fresh))}],value:'file'}});assert.equal(JSON.parse(app.cached.get(courseModel.STORAGE_KEY)).blocks.one.goal,'Восстановление подтверждено');
+});
+
+test('a legitimate export larger than one megabyte restores fully, including UTF-8 BOM and resume position',async()=>{
+ const app=loadApp(),w={one:model.fresh(),two:secondModel.fresh(),three:thirdModel.fresh(),four:fourthModel.fresh()};w.four.goal='Длинная работа';w.four.step=2;
+ const text='Т'.repeat(4000);for(const c of fourthModel.CASES){const data=w.four.cases[c.id];for(let i=0;i<30;i++)data.attempts.push({prediction:text,setup:{goal:text,tools:[],criterion:'proposal',checkPlan:text},assessment:'not_met',explanation:text});data.current=29;data.prediction=text;}
+ const raw='\uFEFF'+JSON.stringify(courseModel.packet(w,4)),size=Buffer.byteLength(raw);assert.ok(size>1000000&&size<courseModel.MAX_FILE_BYTES);
+ await app.elements.get('restore').listeners.change({target:{files:[{size,text:async()=>raw}],value:'file'}});assert.equal(app.context.activePracticeBlock,4);assert.equal(app.fourth().getState().step,2);assert.equal(app.fourth().getState().cases.available.attempts.length,30);assert.match(app.elements.get('notice').textContent,/Работа восстановлена/);
+});
+
+test('oversized and malformed imports leave the current work untouched',async()=>{
+ const app=loadApp();app.input('goal','Сохранить эту работу');
+ for(const file of [{size:courseModel.MAX_FILE_BYTES+1,text:async()=>{throw Error('must not read');}},{size:20,text:async()=>'{broken'}]){
+  await app.elements.get('restore').listeners.change({target:{files:[file],value:'file'}});assert.equal(app.getState().goal,'Сохранить эту работу');assert.match(app.elements.get('notice').textContent,/Не удалось восстановить/);
+ }
+});
+
+test('a direct link into an unopened block preserves its actual step on reopening',()=>{
+ for(const [initialHash,block,step] of [['#block2/unavailable',2,3],['#block3/budget',3,2],['#block4/report',4,5]]){
+  const app=loadApp({initialHash}),reopened=loadApp({initialStorage:Object.fromEntries(app.cached)});assert.equal(reopened.context.activePracticeBlock,block);assert.equal(reopened.context.practiceWork[['','one','two','three','four'][block]].step,step);
+ }
+});
+
+test('legacy autosave entries are removed only after a complete snapshot was saved',()=>{
+ const first=model.fresh();first.goal='Старая сохранённая работа';const old=JSON.stringify(first),key='agent-course-block-one-v2';
+ const failed=loadApp({initialStorage:{[key]:old},writeFails:()=>true});failed.input('goal','Новый текст');assert.equal(failed.cached.get(key),old);assert.equal(failed.cached.has(courseModel.STORAGE_KEY),false);
+ const migrated=loadApp({initialStorage:{[key]:old}});migrated.input('goal','Новый текст');assert.equal(migrated.cached.has(key),false);assert.equal(JSON.parse(migrated.cached.get(courseModel.STORAGE_KEY)).blocks.one.goal,'Новый текст');
+});
+
+test('an older pending file import cannot overwrite the newer selected file',async()=>{
+ const app=loadApp();let finishFirst;const first=model.fresh(),second=model.fresh();first.goal='Устаревший запрос';second.goal='Последний выбранный файл';
+ const restore=app.elements.get('restore').listeners.change,pending=restore({target:{files:[{size:100,text:()=>new Promise(resolve=>finishFirst=resolve)}],value:'first'}});
+ await restore({target:{files:[{size:100,text:async()=>JSON.stringify(model.packet(second))}],value:'second'}});
+ finishFirst(JSON.stringify(model.packet(first)));await pending;assert.equal(app.getState().goal,'Последний выбранный файл');assert.equal(JSON.parse(app.cached.get(courseModel.STORAGE_KEY)).blocks.one.goal,'Последний выбранный файл');
+});
+
+test('an incomplete file package explains the recovery action and does not show an inert start button',()=>{
+ const app=loadApp({missingModule:'BlockFour'});assert.match(app.elements.get('screen').textContent,/Распакуйте всю папку/);assert.equal(app.elements.get('next').disabled,true);assert.match(app.elements.get('next').textContent,/полный комплект/);
+});
+
+test('reaching the role attempt limit still permits returning to the last recorded answers and continuing',()=>{
+ const app=loadApp(),s=model.fresh();s.step=2;s.roleAttempts=Array.from({length:30},()=>[...model.ROLE_KEYS]);s.roles=['check','proposal','execute','observation'];s.rolesReviewed=false;app.setState(s);app.render();app.clickNext();assert.match(app.elements.get('screen').innerHTML,/last-roles/);
+ app.events.click({target:{closest:()=>({dataset:{action:'last-roles'}})}});assert.equal(s.roleAttempts.length,30);assert.equal(s.rolesReviewed,true);assert.deepEqual(Array.from(s.roles),[...model.ROLE_KEYS]);app.clickNext();assert.equal(s.step,3);
+});
+
+test('reaching the forecast limit still permits returning to the last actual experiment',()=>{
+ const app=loadApp(),s=model.fresh();s.step=3;s.priority='urgent';s.prediction='send';s.comparisonAttempts=Array.from({length:30},()=>({priority:'urgent',prediction:'deadline'}));s.comparison={...s.comparisonAttempts.at(-1)};app.setState(s);app.render();app.clickNext();assert.match(app.elements.get('screen').innerHTML,/last-comparison/);
+ app.events.click({target:{closest:()=>({dataset:{action:'last-comparison'}})}});assert.equal(s.comparisonAttempts.length,30);assert.equal(s.prediction,'deadline');app.clickNext();assert.equal(s.step,4);
 });

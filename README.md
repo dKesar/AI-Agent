@@ -8,6 +8,8 @@
 
 Полный HTML-курс находится в репозитории: **скачайте Code → Download ZIP, распакуйте и откройте `index.html`**. В Windows можно дважды нажать `OPEN-COURSE.cmd`. Установка программ, Python и ключ модели для сайта не нужны. Все 41 изображение слайдов, PowerPoint, Word и [автономный комплект ZIP](site/assets/offline-course.zip) включены. Публичный адрес сайта пока не подтверждён. Прежний [конспект на 32 слайда](lectures/visual/lecturer-notes.md) сохранён как архивный.
 
+**Проверка текущей версии:** [результаты анализа и исправлений](review/SYSTEM_AUDIT.md), [план следующего пользовательского тестирования](review/TESTING.md).
+
 **Первый шаг: [НАЧАТЬ ЗДЕСЬ](START-HERE.md).** Там объяснено, что скачать, куда нажать и что должно появиться на экране.
 
 ## Что вы получите
@@ -58,6 +60,7 @@ python -m unittest discover -s tests -v
 python -m scripts.run_cases
 python -m scripts.check_exercise --solution
 python -m scripts.check_links
+node scripts/test_browser.mjs
 python -m scripts.import_browser_work ai-agent-work.json
 ```
 

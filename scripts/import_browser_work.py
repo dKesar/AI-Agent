@@ -52,7 +52,7 @@ def replay_packet(packet):
 def import_work(source, output):
     if source.stat().st_size > 4_000_000:
         raise ValueError("Пакет больше 4 МБ. Разделите работу на несколько пакетов.")
-    packet = json.loads(source.read_text(encoding="utf-8"))
+    packet = json.loads(source.read_text(encoding="utf-8-sig"))
     report = replay_packet(packet)  # Сначала полная валидация; до неё ничего не пишем.
     output.mkdir(parents=True, exist_ok=True)
     suffix = 1

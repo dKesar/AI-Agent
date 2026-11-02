@@ -36,8 +36,8 @@ def main():
             resolved = (page.parent / target).resolve()
             assert resolved.is_relative_to(root) and resolved.is_file(), (page, target)
     count = json.loads((site / "assets/manifest.json").read_text(encoding="utf-8"))["slides"]
-    required = ["index.html", "OPEN-COURSE.cmd", "site/app.js", "site/styles.css",
-                "site/lecture.html", "site/lecture.css", "site/lecture.js",
+    required = ["index.html", "OPEN-COURSE.cmd", "site/app.js", "site/styles.css", "site/index.html", "site/entry.js", "site/legacy.html",
+                "site/lecture.html", "site/lecture.css", "site/lecture-chapter.js", "site/lecture.js",
                 "site/assets/lecture.pptx", "site/assets/explanation.docx", "site/assets/manifest.json"]
     required += [f"site/assets/slides/slide-{i}.png" for i in range(1, count + 1)]
     required += ["site/agent-anatomy/" + name for name in PRACTICE_FILES]
@@ -47,8 +47,9 @@ def main():
         assert "site/assets/offline-course.zip" not in names, "Nested archive"
         assert archive.testzip() is None, "Corrupt archive"
         for name in required:
-            assert archive.read(name) == (root / name).read_bytes(), name
-        assert "Вы уже открыли автономный комплект" in archive.read("site/index.html").decode("utf-8")
+            if name != "site/legacy.html":
+                assert archive.read(name) == (root / name).read_bytes(), name
+        assert "Вы уже открыли автономный комплект" in archive.read("site/legacy.html").decode("utf-8")
         for name in sorted(names):
             if name.endswith(".html"):
                 for target in links(archive.read(name).decode("utf-8")):

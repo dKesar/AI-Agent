@@ -73,6 +73,14 @@ class BrowserImportTests(unittest.TestCase):
             self.assertNotEqual(first, second)
             self.assertEqual(marker.read_bytes(), previous)
 
+    def test_utf8_bom_work_file_is_accepted(self):
+        with TemporaryDirectory() as tmp:
+            source = Path(tmp) / "work.json"
+            source.write_text(json.dumps(self.packet()), encoding="utf-8-sig")
+            folder, report = import_work(source, Path(tmp) / "outputs")
+            self.assertTrue(report["browser_parity"])
+            self.assertTrue((folder / "python-report.json").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

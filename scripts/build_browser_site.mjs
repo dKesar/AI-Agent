@@ -10,3 +10,7 @@ const app=(await read('app.mjs')).replace(/^import .*;\n/gm,'');
 const bundle=`(()=>{\nconst engine=(()=>{${engine}\nreturn {simulate,validatePolicies,validatePacket,matchesExpectation,STATUSES,TOOLS,VERSION};})();\nconst {simulate,validatePolicies,validatePacket,matchesExpectation,STATUSES,TOOLS,VERSION}=engine;\n${data}\n${app}\n})();\n`;
 await fs.writeFile(path.join(root,'site/app.js'),bundle);
 console.log('site/app.js rebuilt.');
+
+// Both entry points open the same current course. Legacy UI stays explicit.
+const entry=(await fs.readFile(path.join(root,'index.html'),'utf8')).replace(/href="site\//g,'href="./').replace('</head>','<script defer src="./entry.js"></script></head>');
+await fs.writeFile(path.join(root,'site/index.html'),entry);

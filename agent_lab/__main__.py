@@ -1,11 +1,16 @@
 import argparse
 import json
 from pathlib import Path
+import sys
 
 from .core import ModelError, Toolkit, load_data, run, validate_policies, validate_task
 
 
 def main():
+    # JSON and redirected diagnostics use UTF-8 on Windows as well as Linux.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     cases = load_data("cases.json")
     parser = argparse.ArgumentParser(description="Практикум по ИИ-агентам")
     source = parser.add_mutually_exclusive_group()
@@ -19,13 +24,13 @@ def main():
     parser.add_argument("--json", action="store_true", help="Структурированный результат")
     options = parser.parse_args()
     try:
-        task = json.loads(options.task.read_text(encoding="utf-8")) if options.task else cases[options.case]["task"]
+        task = json.loads(options.task.read_text(encoding="utf-8-sig")) if options.task else cases[options.case]["task"]
     except (OSError, UnicodeError, json.JSONDecodeError):
         parser.error("Не удалось прочитать JSON-файл задачи.")
     policies = None
     if options.policies:
         try:
-            policies = validate_policies(json.loads(options.policies.read_text(encoding="utf-8")))
+            policies = validate_policies(json.loads(options.policies.read_text(encoding="utf-8-sig")))
         except (OSError, UnicodeError, ValueError) as exc:
             parser.error("Не удалось загрузить правила. " + str(exc))
     estimate = None
