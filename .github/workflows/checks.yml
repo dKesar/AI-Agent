@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node --check site/lecture.js
+      - run: node --test site/agent-anatomy/*.test.cjs
       - run: python -m scripts.check_browser_parity
       - run: node scripts/build_browser_site.mjs
       - run: git diff --exit-code -- site/app.js
