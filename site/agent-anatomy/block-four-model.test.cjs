@@ -28,3 +28,28 @@ test('reports contain no unperformed room searches and escape learner text',()=>
  const empty=M.body(M.fresh(),E);assert.equal((empty.match(/Опыт не запускался/g)||[]).length,2);assert.doesNotMatch(empty,/Вызов 1:|Фактически:/);
  const s=configured();s.goal='Текст $& <script>bad</script>';run(s,'available');const html=M.body(s,E);assert.match(html,/Текст \$&amp; &lt;script&gt;/);assert.doesNotMatch(html,/<script>/);assert.match(html,/Комната не забронирована/);
 });
+
+test('old saved work restores every meeting attempt and adds an unanswered independent check',()=>{
+ const s=configured();run(s,'available');M.current(s,'available').explanation='Старое объяснение';delete s.checkpoint;
+ const restored=M.normalize(s);assert.equal(restored.cases.available.attempts[0].explanation,'Старое объяснение');assert.equal(M.checkpointDone(restored),false);assert.deepEqual(restored.checkpoint,M.freshCheckpoint());
+});
+
+test('independent check requires all choices and a reason before recording the first answer',()=>{
+ const s=M.fresh();assert.equal(M.submitCheckpoint(s).field,'checkpoint-boundary');assert.equal(s.checkpoint.first,null);
+ for(const [key,q] of Object.entries(M.CHECKPOINT.questions))s.checkpoint.answers[key]=q.expected;
+ assert.equal(M.submitCheckpoint(s).field,'checkpoint-reason');assert.equal(M.checkpointScore(s),null);
+ s.checkpoint.reason='Поиск выполнен, но требуемого черновика ещё нет.';assert.equal(M.submitCheckpoint(s),null);assert.equal(M.checkpointScore(s),4);
+});
+
+test('wrong first answers remain fixed after feedback and cannot be replaced by a second submission',()=>{
+ const s=M.fresh();s.checkpoint.answers={boundary:'model',completion:'yes',evidence:'claim',next:'enable_send'};s.checkpoint.reason='Моё первоначальное объяснение';M.submitCheckpoint(s);
+ assert.equal(M.checkpointScore(s),0);assert.throws(()=>M.submitCheckpoint(s),/уже записана/);assert.throws(()=>{s.checkpoint.first.answers.boundary='application';},TypeError);
+ s.checkpoint.answers.boundary='application';s.checkpoint.reason='После разбора';s.checkpoint.reflection='Перепутал предложение и выполнение.';
+ const restored=M.normalize(s);assert.equal(restored.checkpoint.reason,'Моё первоначальное объяснение');assert.equal(restored.checkpoint.answers.boundary,'model');assert.equal(M.checkpointScore(restored),0);assert.match(M.checkpointSummary(restored),/Перепутал предложение/);
+});
+
+test('import drops injected scores and rejects incomplete or incompatible first snapshots',()=>{
+ const s=M.fresh();for(const [key,q] of Object.entries(M.CHECKPOINT.questions))s.checkpoint.answers[key]=q.expected;s.checkpoint.reason='<script>bad</script> $&';M.submitCheckpoint(s);
+ const raw=JSON.parse(JSON.stringify(s));raw.checkpoint.score=0;assert.equal(M.checkpointScore(M.normalize(raw)),4);assert.doesNotMatch(M.checkpointSummary(M.normalize(raw)),/<script>/);assert.match(M.checkpointSummary(M.normalize(raw)),/&lt;script&gt;bad/);
+ for(const mutate of [x=>x.checkpoint.first.answers.next='',x=>x.checkpoint.first.caseId='different',x=>x.checkpoint.first.reason='',x=>x.checkpoint.answers.next='book_room']){const bad=JSON.parse(JSON.stringify(s));mutate(bad);assert.throws(()=>M.normalize(bad),/Повреждены данные самостоятельной проверки/);}
+});

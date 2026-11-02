@@ -238,10 +238,29 @@ test('a denied meeting tool guides back to settings and retains the failed attem
 test('two meeting datasets and independent explanations produce a single four-block report',async()=>{
  const app=loadApp();app.input('goal','Ответ первого блока');enterFourth(app);const s=app.fourth().getState();
  for(const c of fourthModel.CASES){app.input('prediction','Ожидаю проверить '+c.id);app.clickNext();explainMeeting(app,'Мои выводы '+c.id);app.clickNext();}
- assert.equal(s.step,4);app.clickNext();assert.equal(app.activeId,'transfer');app.input('transfer','Общий цикл предложения, проверки, выполнения и наблюдения.');app.input('confirmation','Подтверждает человек, бронирования не было.');app.clickNext();assert.equal(s.step,5);app.clickNext();const html=await app.downloads[0].text();assert.match(html,/Ответ первого блока/);assert.match(html,/Мои выводы available/);assert.match(html,/Мои выводы unavailable/);assert.match(html,/Практика 4/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.equal(app.downloads.length,1);
+ assert.equal(s.step,4);app.clickNext();assert.equal(app.activeId,'transfer');app.input('transfer','Общий цикл предложения, проверки, выполнения и наблюдения.');app.input('confirmation','Подтверждает человек, бронирования не было.');app.clickNext();assert.equal(s.step,5);
+ for(const [key,q] of Object.entries(fourthModel.CHECKPOINT.questions))app.events.change({target:{dataset:{checkpoint:key},value:q.expected}});
+ app.input('checkpoint-reason','Поиск выполнен, но черновика нет. Отправку отклонило приложение.');app.clickNext();assert.match(app.elements.get('screen').innerHTML,/согласуются 4 из 4/);app.clickNext();
+ const html=await app.downloads[0].text();assert.match(html,/Ответ первого блока/);assert.match(html,/Мои выводы available/);assert.match(html,/Мои выводы unavailable/);assert.match(html,/Практика 4/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.equal(app.downloads.length,1);
 });
 test('four-block backup works without browser storage and a legacy import preserves meeting attempts',async()=>{
  const app=loadApp({storageFails:true});enterFourth(app);app.input('prediction','Первый прогноз');app.clickNext();explainMeeting(app,'Сохранённое объяснение четвёртого блока');
  app.events.click({target:{closest:()=>({dataset:{action:'backup'}})}});const raw=JSON.parse(await app.downloads[0].text());assert.equal(raw.schema,'agent-practice/course-v3');assert.equal(raw.blocks.four.cases.available.attempts[0].explanation,'Сохранённое объяснение четвёртого блока');
  const incoming=model.fresh();incoming.goal='Старая работа первого блока';await app.elements.get('restore').listeners.change({target:{files:[{size:100,text:async()=>JSON.stringify(model.packet(incoming))}],value:'file'}});assert.equal(app.context.practiceWork.one.goal,'Старая работа первого блока');assert.equal(app.fourth().getState().cases.available.attempts.length,1);assert.match(app.elements.get('save-status').textContent,/Автосохранение недоступно/);
+});
+
+test('independent check gives no answer key before submission and preserves live fields while typing',()=>{
+ const app=loadApp();app.context.location.hash='#block4/report';app.route();const screen=app.elements.get('screen');
+ assert.match(screen.innerHTML,/Разберите новый случай/);assert.doesNotMatch(screen.innerHTML,/Разрешать отправку исходная задача|В первой попытке|Ваш ответ:|ПЕРВАЯ ПОПЫТКА СОХРАНЕНА/);
+ app.clickNext();assert.equal(app.activeId,'checkpoint-boundary');
+ for(const [key,q] of Object.entries(fourthModel.CHECKPOINT.questions))app.events.change({target:{dataset:{checkpoint:key},value:Object.keys(q.options).find(value=>value!==q.expected)}});
+ app.clickNext();assert.equal(app.activeId,'checkpoint-reason');const field=app.elements.get('checkpoint-reason'),writes=app.screenWrites;app.input('checkpoint-reason','Мой первый разбор по журналу.');assert.equal(app.screenWrites,writes);assert.equal(app.elements.get('checkpoint-reason'),field);
+ app.clickNext();assert.match(screen.innerHTML,/согласуются 0 из 4/);assert.equal(app.downloads.length,0);const first=app.fourth().getState().checkpoint.first;
+ app.events.change({target:{dataset:{checkpoint:'boundary'},value:'application'}});assert.equal(first.answers.boundary,'model');
+ app.input('checkpoint-reflection','Уточнение после разбора.');assert.equal(app.fourth().getState().checkpoint.first.reason,'Мой первый разбор по журналу.');
+});
+
+test('a learner can save a clearly incomplete report before answering the final check',async()=>{
+ const app=loadApp();app.context.location.hash='#block4/report';app.route();app.events.click({target:{closest:()=>({dataset:{action:'draft-four'}})}});
+ const report=await app.downloads[0].text();assert.match(report,/Черновик — есть незавершённые разделы/);assert.match(report,/Новый случай ещё не разобран/);assert.doesNotMatch(report,/первой попытке с журналом согласуются/);
 });

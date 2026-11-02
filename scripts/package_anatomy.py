@@ -22,19 +22,30 @@ def main():
     for name in ('index.html', 'guide.html'):
         text = (source / name).read_text(encoding='utf-8')
         for target in re.findall(r'(?:src|href)="([^"#]+)"', text):
-            if target not in FILES:
+            if target not in FILES and target != '../lecture.html':
                 raise SystemExit(f'Непереносимая ссылка: {name} -> {target}')
     destination.mkdir(parents=True, exist_ok=True)
     for name in FILES:
         shutil.copyfile(source / name, destination / name)
+    page = destination / 'index.html'
+    page.write_text(page.read_text(encoding='utf-8').replace('href="../lecture.html"', 'href="lecture.html"'), encoding='utf-8')
+    lecture_files = ['lecture.html', 'lecture.css', 'lecture.js', 'assets/lecture.pptx', 'assets/explanation.docx']
+    lecture_files += [f'assets/slides/slide-{i}.png' for i in range(1, 42)]
+    for name in lecture_files:
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source.parent / name, target)
+    page = destination / 'lecture.html'
+    page.write_text(page.read_text(encoding='utf-8').replace('href="../index.html"', 'href="index.html"').replace('← К началу курса', '← К практике').replace('href="./agent-anatomy/index.html"', 'href="./index.html"').replace('href="./agent-anatomy/guide.html"', 'href="./guide.html"'), encoding='utf-8')
+    packaged = [*FILES, *lecture_files]
     archive = destination.with_suffix('.zip')
     with ZipFile(archive, 'w', ZIP_DEFLATED) as bundle:
-        for name in FILES:
+        for name in packaged:
             bundle.write(destination / name, name)
     with ZipFile(archive) as bundle:
         assert bundle.testzip() is None
-        assert set(bundle.namelist()) == set(FILES)
-    print(f'OK: {len(FILES)} files, offline package: {archive}')
+        assert set(bundle.namelist()) == set(packaged)
+    print(f'OK: {len(packaged)} files including lecture, offline package: {archive}')
 
 
 if __name__ == '__main__':
