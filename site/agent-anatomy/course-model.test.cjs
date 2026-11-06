@@ -12,7 +12,7 @@ test('all imported blocks are validated before any caller can replace current wo
  const p=C.packet(work());p.blocks.three.budget.limit=0;assert.throws(()=>C.unpack(p,F,B,T),/Повреждены/);assert.throws(()=>C.unpack({schema:'unexpected'},F,B,T),/JSON/);
 });
 test('an intermediate report has one summary, three blocks and no fake calls',()=>{
- const w=work();w.one.goal='Цель $& <img src=x onerror=x>';const html=C.report(w,E,F,B,T);assert.equal((html.match(/<body>/g)||[]).length,1);assert.equal((html.match(/Практикум: отчёт/g)||[]).length,1);assert.match(html,/Практика 1/);assert.match(html,/Практика 2/);assert.match(html,/Практика 3/);assert.match(html,/промежуточный отчёт содержит только блоки 1–3/);assert.match(html,/Цель \$&amp; &lt;img/);assert.doesNotMatch(html,/<img src=x|Вызов 1:/);assert.match(html,/Черновик — есть незавершённые разделы/);
+ const w=work();w.one.goal='Цель $& <img src=x onerror=x>';const html=C.report(w,E,F,B,T);assert.equal((html.match(/<body>/g)||[]).length,1);assert.equal((html.match(/<h1>/g)||[]).length,1);assert.match(html,/Промежуточный отчёт по практикуму/);assert.match(html,/Блок 1\. Устройство помощника/);assert.match(html,/Блок 2\. Новые ситуации/);assert.match(html,/Блок 3\. Ограничения/);assert.match(html,/Цель \$&amp; &lt;img/);assert.doesNotMatch(html,/<img src=x|Вызов 1:/);assert.match(html,/Черновик — есть незавершённые разделы/);
 });
 
 const Q=require('./block-four-model.js');
@@ -20,7 +20,7 @@ test('four-block backups restore atomically, while older files leave block four 
  const w={...work(),four:Q.fresh()},p=C.packet(w);assert.equal(p.schema,'agent-practice/course-v3');assert.deepEqual(C.unpack(p,F,B,T,Q),w);assert.equal(C.unpack(C.packet(work()),F,B,T,Q).four,null);p.blocks.four.tools=['book_room'];assert.throws(()=>C.unpack(p,F,B,T,Q),/Повреждены/);
 });
 test('an untouched final report explicitly marks missing work in all four blocks',()=>{
- const html=C.report({...work(),four:Q.fresh()},E,F,B,T,Q);assert.match(html,/Итоговый отчёт по практикуму/);assert.match(html,/Блок 4: нужно дополнить/);assert.match(html,/Практика 4/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.doesNotMatch(html,/в разработке|Вызов 1:/);assert.equal((html.match(/<body>/g)||[]).length,1);
+ const html=C.report({...work(),four:Q.fresh()},E,F,B,T,Q);assert.match(html,/Итоговый отчёт по практикуму/);assert.match(html,/4\. Новая задача<\/strong>\s*<span[^>]*> · нужно дополнить/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.doesNotMatch(html,/в разработке|Вызов 1:/);assert.equal((html.match(/<body>/g)||[]).length,1);
 });
 test('a fully filled final report includes four independent conclusions and actual meeting trials',()=>{
  const w={...work(),four:Q.fresh()},a=w.one,b=w.two,t=w.three,q=w.four;
@@ -30,5 +30,10 @@ test('a fully filled final report includes four independent conclusions and actu
  q.goal='Предложить комнату';q.tools=Object.keys(Q.TOOLS);q.criterion='proposal';q.checkPlan='Проверить требования';q.setupRecorded=true;for(const c of Q.CASES){q.cases[c.id].prediction='Мой прогноз';Q.run(q,c.id,E);Q.current(q,c.id).assessment='not_met';Q.current(q,c.id).explanation='Моё объяснение';}q.transfer='Вывод четвёртого $& <img>';q.confirmation='Нужно подтверждение';
  assert.equal(C.readiness(w,E,F,B,T,Q)[3],false);
  q.checkpoint.answers=Object.fromEntries(Object.entries(Q.CHECKPOINT.questions).map(([key,item])=>[key,item.expected]));q.checkpoint.reason='Поиск выполнен, отправка запрещена, черновика нет.';Q.submitCheckpoint(q);
- assert.deepEqual(C.readiness(w,E,F,B,T,Q),[true,true,true,true]);const html=C.report(w,E,F,B,T,Q);assert.match(html,/Разделы всех четырёх заданий заполнены/);for(const text of ['Вывод первого','Вывод второго','Вывод третьего','Вывод четвёртого'])assert.match(html,new RegExp(text));assert.match(html,/ROOM-B/);assert.match(html,/Комната не забронирована/);assert.match(html,/первой попытке с журналом согласуются 4 из 4/);assert.doesNotMatch(html,/<img>/);
+ assert.deepEqual(C.readiness(w,E,F,B,T,Q),[true,true,true,true]);const html=C.report(w,E,F,B,T,Q);assert.match(html,/Заполнено блоков <strong>4 из 4/);for(const text of ['Вывод первого','Вывод второго','Вывод третьего','Вывод четвёртого'])assert.match(html,new RegExp(text));assert.match(html,/ROOM-B/);assert.match(html,/Комната не забронирована/);assert.match(html,/первой попытке с журналом согласуются 4 из 4/);
+ const overview=html.match(/<main class="report-overview">([\s\S]*?)<\/main>/)[1];
+ assert.match(overview,/С журналом совпало 4 из 4 первых ответов/);
+ assert.match(overview,/Поиск выполнен, отправка запрещена, черновика нет/);
+ assert.doesNotMatch(overview,/ROOM-B|Аргументы:|Условия:|Мой прогноз/);
+ assert.match(html,/<details class="report-appendix">/);assert.doesNotMatch(html,/<img>/);
 });

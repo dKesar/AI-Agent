@@ -9,10 +9,77 @@ function unpack(raw,F,B,T,Q){if(raw?.schema==='agent-practice/course-v3'){if(!Q)
 function readSnapshot(storage,F,B,T,Q){const raw=storage.getItem(STORAGE_KEY);if(!raw)return null;const packet=JSON.parse(raw);return {blocks:unpack(packet,F,B,T,Q),activeBlock:Number.isInteger(packet.activeBlock)&&packet.activeBlock>=1&&packet.activeBlock<=4?packet.activeBlock:1};}
 function writeSnapshot(storage,work,activeBlock){storage.setItem(STORAGE_KEY,JSON.stringify(envelope(work,activeBlock)));}
 function readiness(work,E,F,B,T,Q){return [!F.missing(work.one).length,B.readiness(work.two||B.fresh()).slice(1,5).every(Boolean),T.readiness(work.three||T.fresh()).slice(1,5).every(Boolean),...(Q?[Q.readiness(work.four||Q.fresh(),E).every(Boolean)]:[])];}
-function report(work,E,F,B,T,Q){const one=F.normalize(work.one),two=B.normalize(work.two),three=T.normalize(work.three),four=Q?Q.normalize(work.four):null;const ready=readiness({one,two,three,four},E,F,B,T,Q),h=T.escape;
- const previous=B.report(one,two,E,F),previousBody=previous.match(/<body>([\s\S]*)<\/body>/)[1],details=previousBody.slice(previousBody.indexOf('<hr>')+4);
- const summary=`<h1>${Q?'Итоговый отчёт по практикуму':'Практикум: отчёт по блокам 1–3'}</h1><p class="subtitle">${ready.every(Boolean)?(Q?'Разделы всех четырёх заданий заполнены — для проверки преподавателем':'Разделы трёх блоков заполнены — для проверки преподавателем'):'Черновик — есть незавершённые разделы'}</p><p>Участник / код: <b>${h(one.author||'Не указан')}</b></p><ul>${ready.map((done,i)=>`<li>Блок ${i+1}: ${done?'заполнен':'нужно дополнить'}</li>`).join('')}${Q?'':'<li>Этот промежуточный отчёт содержит только блоки 1–3.</li>'}</ul><p>Работа в сценарной симуляции без настоящей языковой модели. Лимиты, разрешения и результаты относятся к этому учебному приложению. На каждый блок запланировано 45 минут; длительность ещё нужно проверить на группе. Заполнение полей не является автоматической оценкой понимания.</p>${Q?`${Q.checkpointSummary(four)}<details><summary>Критерии проверки преподавателем</summary><p>По каждому критерию: 0 — объяснение неверно или отсутствует; 1 — частичное либо после подсказки; 2 — самостоятельное, с конкретным доказательством из журнала.</p><ol><li>Различает роли модели, приложения и инструмента.</li><li>Опирается на выполненные действия и полученные данные.</li><li>Сверяет результат с исходной задачей.</li><li>Объясняет разрешения, лимиты и причину остановки.</li><li>Переносит устройство на новый случай и обосновывает следующий шаг.</li></ol><p>Сумма до 10 — рабочая шкала для пробного занятия, не проверенный порог сертификации. Четыре выбранных ответа не заменяют оценку объяснений.</p></details><h2>Краткие самостоятельные выводы</h2><ol><li>${h(one.goalExplanation||'Не заполнено')}</li><li>${h(two.conclusion||'Не заполнено')}</li><li>${h(three.success||'Не заполнено')}</li><li>${h(four.transfer||'Не заполнено')}</li></ol>`:''}`;
- return previous.replace('<title>Отчёт по блокам 1 и 2</title>',Q?'<title>Итоговый отчёт по практикуму</title>':'<title>Отчёт по блокам 1–3</title>').replace(/<body>[\s\S]*<\/body>/,()=>`<body>${summary}<hr>${details}<hr>${T.body(three,E)}${Q?'<hr>'+Q.body(four,E):''}</body>`);
+function report(work, engine, firstModel, secondModel, thirdModel, fourthModel) {
+  const first = firstModel.normalize(work.one);
+  const escape = firstModel.escape;
+  const blocks = [{
+    name: 'Устройство помощника',
+    done: !firstModel.missing(first).length,
+    answer: first.callExplanation || first.goalExplanation,
+    details: firstModel.body(first, engine)
+  }];
+  if (secondModel) {
+    const second = secondModel.normalize(work.two);
+    blocks.push({
+      name: 'Новые ситуации',
+      done: secondModel.readiness(second).slice(1, 5).every(Boolean),
+      answer: second.conclusion,
+      details: secondModel.body(second, engine, false)
+    });
+  }
+  if (thirdModel) {
+    const third = thirdModel.normalize(work.three);
+    blocks.push({
+      name: 'Ограничения',
+      done: thirdModel.readiness(third).slice(1, 5).every(Boolean),
+      answer: third.success,
+      details: thirdModel.body(third, engine, false)
+    });
+  }
+  let checkpoint = '';
+  let checkpointDetails = '';
+  if (fourthModel) {
+    const fourth = fourthModel.normalize(work.four);
+    blocks.push({
+      name: 'Новая задача',
+      done: fourthModel.readiness(fourth, engine).every(Boolean),
+      answer: fourth.transfer,
+      details: fourthModel.body(fourth, engine, false)
+    });
+    checkpoint = '<h2>Итоговая проверка</h2>';
+    if (fourth.checkpoint.first) {
+      checkpoint += `<p>С журналом совпало ${fourthModel.checkpointScore(fourth)} из 4 первых ответов.</p>
+        <p class="answer">${escape(fourth.checkpoint.first.reason)}</p>`;
+    } else {
+      checkpoint += '<p>Новый случай ещё не разобран.</p>';
+    }
+    checkpointDetails = `<details><summary>Первая попытка и разбор нового случая</summary>
+      ${fourthModel.checkpointSummary(fourth)}</details>
+      <details><summary>Критерии проверки преподавателем</summary>
+      <p>Оцените роли, опору на данные, результат, ограничения и перенос. По каждому критерию поставьте 0 за неверное или отсутствующее объяснение, 1 за частичное объяснение или 2 за обоснованный самостоятельный ответ.</p></details>`;
+  }
+  const finished = blocks.filter(block => block.done).length;
+  const title = fourthModel ? 'Итоговый отчёт по практикуму' : 'Промежуточный отчёт по практикуму';
+  const overview = `<main class="report-overview">
+    <h1>${title}</h1>
+    <p class="report-meta">Участник или код <strong>${escape(first.author || 'Не указан')}</strong></p>
+    <p class="report-meta">Заполнено блоков <strong>${finished} из ${blocks.length}</strong></p>
+    ${finished < blocks.length ? '<p class="notice">Черновик — есть незавершённые разделы</p>' : ''}
+    <h2>Выводы по блокам</h2>
+    <ol class="report-blocks">${blocks.map((block, index) => `<li>
+      <strong>${index + 1}. ${block.name}</strong>
+      <span class="report-state"> · ${block.done ? 'заполнен' : 'нужно дополнить'}</span>
+      <p>${escape(block.answer.trim() || 'Вывод пока не записан.')}</p>
+    </li>`).join('')}</ol>
+    ${checkpoint}
+  </main>`;
+  const appendix = `<details class="report-appendix">
+    <summary>Все ответы, попытки и журналы</summary>
+    ${blocks.map((block, index) => `<details><summary>Блок ${index + 1}. ${block.name}</summary>${block.details}</details>`).join('')}
+    ${checkpointDetails}
+  </details>
+  <p class="report-print-help">Раскройте этот раздел перед печатью, чтобы добавить подробности.</p>`;
+  return firstModel.reportDocument(title, overview + appendix, true);
 }
 return {STORAGE_KEY,MAX_FILE_BYTES,ROUTES,routeFor,packet,unpack,readSnapshot,writeSnapshot,readiness,report};
 });

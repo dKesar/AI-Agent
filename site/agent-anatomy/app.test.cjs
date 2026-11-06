@@ -205,7 +205,7 @@ test('wrong reviewed outcome choices can continue to block four with an intermed
  const app=loadApp();app.input('goal','Цель первого блока');app.context.location.hash='#block3/outcomes';app.route();app.clickNext();assert.equal(app.activeId,'verdict-blocked');
  for(const key of ['blocked','one','three'])app.events.change({target:{dataset:{verdict:key},value:key==='one'?'yes':'no'}});
  app.clickNext();assert.match(app.elements.get('verdict-feedback').innerHTML,/совпало 0 из 3/);app.clickNext();assert.equal(app.third().getState().step,4);
- app.clickNext();assert.equal(app.activeId,'boundaries');app.input('boundaries','Разрешение проверяет приложение.');app.input('success','Нужно сопоставить черновик с задачей.');app.clickNext();app.events.click({target:{closest:()=>({dataset:{action:'report-three'}})}});const html=await app.downloads[0].text();assert.match(html,/Цель первого блока/);assert.match(html,/Практика 3/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.match(html,/Опыт не запускался/);app.clickNext();assert.equal(app.context.location.hash,'block4');
+ app.clickNext();assert.equal(app.activeId,'boundaries');app.input('boundaries','Разрешение проверяет приложение.');app.input('success','Нужно сопоставить черновик с задачей.');app.clickNext();app.events.click({target:{closest:()=>({dataset:{action:'report-three'}})}});const html=await app.downloads[0].text();assert.match(html,/Цель первого блока/);assert.match(html,/Блок 3\. Ограничения/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.match(html,/Опыт не запускался/);app.clickNext();assert.equal(app.context.location.hash,'block4');
 });
 
 test('one backup includes all three blocks even when storage is blocked',async()=>{
@@ -242,7 +242,7 @@ test('two meeting datasets and independent explanations produce a single four-bl
  assert.equal(s.step,4);app.clickNext();assert.equal(app.activeId,'transfer');app.input('transfer','Общий цикл предложения, проверки, выполнения и наблюдения.');app.input('confirmation','Подтверждает человек, бронирования не было.');app.clickNext();assert.equal(s.step,5);
  for(const [key,q] of Object.entries(fourthModel.CHECKPOINT.questions))app.events.change({target:{dataset:{checkpoint:key},value:q.expected}});
  app.input('checkpoint-reason','Поиск выполнен, но черновика нет. Отправку отклонило приложение.');app.clickNext();assert.match(app.elements.get('screen').innerHTML,/согласуются 4 из 4/);app.clickNext();
- const html=await app.downloads[0].text();assert.match(html,/Ответ первого блока/);assert.match(html,/Мои выводы available/);assert.match(html,/Мои выводы unavailable/);assert.match(html,/Практика 4/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.equal(app.downloads.length,1);
+ const html=await app.downloads[0].text();assert.match(html,/Ответ первого блока/);assert.match(html,/Мои выводы available/);assert.match(html,/Мои выводы unavailable/);assert.match(html,/Блок 4\. Новая задача/);assert.match(html,/Черновик — есть незавершённые разделы/);assert.equal(app.downloads.length,1);
 });
 test('four-block backup works without browser storage and a legacy import preserves meeting attempts',async()=>{
  const app=loadApp({storageFails:true});enterFourth(app);app.input('prediction','Первый прогноз');app.clickNext();explainMeeting(app,'Сохранённое объяснение четвёртого блока');
